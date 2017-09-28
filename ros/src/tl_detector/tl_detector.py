@@ -14,7 +14,7 @@ from styx_msgs.msg import Lane
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from light_classification.tl_classifier import TLClassifier
-import tensorflow as tf
+import tf
 import cv2
 import yaml
 

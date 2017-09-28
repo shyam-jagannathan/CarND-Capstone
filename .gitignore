@@ -2,5 +2,8 @@
 
 build
 devel
-
+*.bak
+*.new
+*.so
+ckpt
 profile.tmp
