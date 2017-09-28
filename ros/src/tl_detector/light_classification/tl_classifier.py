@@ -23,9 +23,9 @@ class TLClassifier(object):
         """
         #TODO implement light color classification by analyzing the pixels inside the bounding boxes
 
-        for box in boxes:
-            if 'traffic light' in box['label']:
-                #do something
+        #for box in boxes:
+        #if 'traffic light' in box['label']:
+        #do something to classify the traffic light color
 
 
         return TrafficLight.UNKNOWN
