@@ -12,7 +12,7 @@ This node will publish waypoints from the car's current position to some `x` dis
 '''
 
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
-max_speed = 8.94 #16 #20*0.447 
+MAX_SPEED = 8.94 #16 #20*0.447 
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -21,7 +21,7 @@ class WaypointUpdater(object):
 
         # The /base_waypoints topic repeatedly publishes a list of all waypoints for the track, 
         # so this list includes waypoints both before and after the vehicle. 
-        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        self.base_waypoints_sub=rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
         rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
@@ -45,16 +45,24 @@ class WaypointUpdater(object):
         if self.waypoints is None or self.current_pose is None:
             return
 
-        start_index = 0
-        end_index = len(self.waypoints)
+        start = 0
+        end = len(self.waypoints)
+        #rospy.loginfo(len(self.waypoints)) # 10902
 
         #just to avoid overshooting/undershooting (we will fix this later)
         if self.previous_closest_waypoint_index is not None:
-            start_index = self.previous_closest_waypoint_index - 20
-            end_index = self.previous_closest_waypoint_index + 20
+            start = self.previous_closest_waypoint_index - 20
+            end = self.previous_closest_waypoint_index + 20
+            #rospy.loginfo(end)
+            # Fixes crash issue at end of lap
+            if (end>len(self.waypoints)-1):
+                start = 0
+                end = len(self.waypoints)
+                #self.set_waypoint_velocity(next_wps, i, 0.0)
+            
 
         # Closest waypoint to our vechicle
-        closest_waypoint_loc= self.get_closet_waypoint_index(self.waypoints,self.current_pose, start_index,end_index)
+        closest_waypoint_loc= self.get_closet_waypoint_index(self.waypoints,self.current_pose, start,end)
         closest_waypoint = self.waypoints[closest_waypoint_loc]
         self.previous_closest_waypoint_index = closest_waypoint_loc 
 
@@ -66,7 +74,7 @@ class WaypointUpdater(object):
             next_wps.append (wpi)
         
         waypoint_distance_to_traffic_light = self.traffic_light_red_waypoint - closest_waypoint_loc
-        upcoming_red_light = (self.traffic_light_red_waypoint != -1 and waypoint_distance_to_traffic_light < 100)
+        upcoming_red_light = (self.traffic_light_red_waypoint != -1 and waypoint_distance_to_traffic_light < 75)
         #rospy.loginfo(waypoint_distance_to_traffic_light)
         #rospy.loginfo(upcoming_red_light)
 
@@ -79,16 +87,18 @@ class WaypointUpdater(object):
         for i in range(len(next_wps) - 1):
  
             if not upcoming_red_light or i > self.traffic_light_red_waypoint:
-                self.set_waypoint_velocity(next_wps, i, max_speed)
-            else: 
+                self.set_waypoint_velocity(next_wps, i, MAX_SPEED)
+            else:
                 waypoint_remaining = self.traffic_light_red_waypoint - closest_waypoint_loc - i
+
                 if waypoint_remaining < 5: #Maintain a safe distance
                     update_velocity = 0.0
                 else:
                     # Slowly reduce velocity based on number of waypoints covered
-                    update_velocity = max_speed - (100 - waypoint_remaining)*(max_speed/100)
-                new_velocity = max(0, update_velocity)
+                    update_velocity = MAX_SPEED - (75 - waypoint_remaining)*(MAX_SPEED/75)
+                new_velocity = max(0.0, update_velocity)
                 self.set_waypoint_velocity(next_wps, i, new_velocity)
+
 
         # Publish waypoints        
         lane = Lane()
@@ -107,6 +117,7 @@ class WaypointUpdater(object):
         if self.waypoints is None:
             self.waypoints = lane.waypoints
             self.loop()
+        self.base_waypoints_sub.unregister()
 
     def traffic_cb(self, msg):
         #rospy.loginfo(msg)
@@ -149,7 +160,7 @@ class WaypointUpdater(object):
         last = waypoints[-1]
         last.twist.twist.linear.x = 0.
         for wp in waypoints[:-1][::-1]:
-            dist = self.distance1(wp.pose.pose.position, last.pose.pose.position)
+            dist = self.distance1(waypoints,wp.pose.pose.position, last.pose.pose.position)
             vel = math.sqrt(2 * MAX_DECEL * dist) * 3.6
             if vel < 1.:
                 vel = 0.
