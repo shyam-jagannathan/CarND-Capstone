@@ -6,13 +6,14 @@ from styx_msgs.msg import Lane, Waypoint, TrafficLight
 from std_msgs.msg import Int32
 import math, sys
 import yaml
+import tf
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
 '''
 
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
-MAX_SPEED = 8.94 #16 #20*0.447 
+MAX_SPEED = 10*0.447 #8.94 #16 #20*0.447 
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -37,10 +38,17 @@ class WaypointUpdater(object):
         self.waypoints = None
         self.traffic_light_red_waypoint = -1
         self.previous_closest_waypoint_index = None
+
+        self.tf_listener = tf.TransformListener()
+        self.default_velocity = rospy.get_param('~velocity', 1) * .44
+        rospy.loginfo(self.default_velocity)
+
+
         rospy.spin()
 
     def loop(self):
         next_wps = []
+        update_velocity = 0
         
         if self.waypoints is None or self.current_pose is None:
             return
@@ -56,6 +64,7 @@ class WaypointUpdater(object):
             #rospy.loginfo(end)
             # Fixes crash issue at end of lap
             if (end>len(self.waypoints)-1):
+                rospy.loginfo(end)
                 start = 0
                 end = len(self.waypoints)
                 #self.set_waypoint_velocity(next_wps, i, 0.0)
@@ -63,7 +72,9 @@ class WaypointUpdater(object):
 
         # Closest waypoint to our vechicle
         closest_waypoint_loc= self.get_closet_waypoint_index(self.waypoints,self.current_pose, start,end)
+        
         closest_waypoint = self.waypoints[closest_waypoint_loc]
+        current_velocity = self.get_waypoint_velocity(closest_waypoint)
         self.previous_closest_waypoint_index = closest_waypoint_loc 
 
         # Create a lookahead points sized list for final waypoints    
@@ -78,27 +89,44 @@ class WaypointUpdater(object):
         #rospy.loginfo(waypoint_distance_to_traffic_light)
         #rospy.loginfo(upcoming_red_light)
 
-        max_deceleration = 2.0
-
-        # stop_line = self.stop_line_positions[self.traffic_light_red_waypoint]
-        # rospy.loginfo(stop_line)
 
         # This section is still in WIP
         for i in range(len(next_wps) - 1):
  
             if not upcoming_red_light or i > self.traffic_light_red_waypoint:
                 self.set_waypoint_velocity(next_wps, i, MAX_SPEED)
+            
+            # 2 simple methods to slow down car (we will choose one of these after TL detector is ready and tested)
+            # Method 1: Stop line method
             else:
+                stop_line_distance = self.find_stop_line(self.traffic_light_red_waypoint,self.lane)
                 waypoint_remaining = self.traffic_light_red_waypoint - closest_waypoint_loc - i
-
-                if waypoint_remaining < 5: #Maintain a safe distance
-                    update_velocity = 0.0
+                # Check if car can cross the signal based on current velocity and its current distance to stop line
+                not_safe_to_cross = (current_velocity/stop_line_distance < 2 and stop_line_distance >= 4)
+                rospy.loginfo(stop_line_distance)
+                
+                if not_safe_to_cross:
+                    #update_velocity = MAX_SPEED - (75 - waypoint_remaining)*(MAX_SPEED/75)
+                    update_velocity=min(max(abs(stop_line_distance*0.2),0.0),current_velocity)
+                elif stop_line_distance < 2: #waypoint_remaining < 6: #Maintain a safe distance
+                        update_velocity = 0.0
                 else:
-                    # Slowly reduce velocity based on number of waypoints covered
                     update_velocity = MAX_SPEED - (75 - waypoint_remaining)*(MAX_SPEED/75)
                 new_velocity = max(0.0, update_velocity)
                 self.set_waypoint_velocity(next_wps, i, new_velocity)
 
+            # Method 2: Waypoint method    
+            #else:
+                # waypoint_remaining = self.traffic_light_red_waypoint - closest_waypoint_loc - i
+
+                # if waypoint_remaining < 6: #Maintain a safe distance
+                #     update_velocity = 0.0
+                # else:
+                #     # Slowly reduce velocity based on number of waypoints covered
+                #     update_velocity = MAX_SPEED - (75 - waypoint_remaining)*(MAX_SPEED/75)
+                # new_velocity = max(0.0, update_velocity)
+                # self.set_waypoint_velocity(next_wps, i, new_velocity)
+ 
 
         # Publish waypoints        
         lane = Lane()
@@ -113,9 +141,11 @@ class WaypointUpdater(object):
         #rospy.loginfo(current_pose)
         self.loop()
 
-    def waypoints_cb(self, lane):
+    def waypoints_cb(self, msg):
+        
         if self.waypoints is None:
-            self.waypoints = lane.waypoints
+            self.lane = msg
+            self.waypoints = msg.waypoints
             self.loop()
         self.base_waypoints_sub.unregister()
 
@@ -166,6 +196,14 @@ class WaypointUpdater(object):
                 vel = 0.
             wp.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
         return waypoints
+        
+
+    def find_stop_line(self,traffic_light,lane):
+        gap = 3
+        lane.waypoints[traffic_light].pose.header.frame_id = lane.header.frame_id
+        traffic_light_red_waypoint_tf = self.tf_listener.transformPose("base_link", lane.waypoints[traffic_light].pose)
+        line_distance = traffic_light_red_waypoint_tf.pose.position.x - gap
+        return line_distance
 
 
 if __name__ == '__main__':
