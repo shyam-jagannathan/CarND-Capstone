@@ -30,11 +30,11 @@ class TLPublisher(object):
         rate = rospy.Rate(50)
         while not rospy.is_shutdown():
             self.traffic_light_pubs.publish(self.lights)
-            rospy.loginfo("light_publisher.py  loop()->publish(self.lights"))
+            rospy.loginfo("light_publisher.py  loop()->publish(self.lights)")
             rate.sleep()
 
     def create_light(self, x, y, z, yaw, state):
-        rospy.loginfo("light_publisher.py create_light)
+        rospy.loginfo("light_publisher.py create_light")
         light = TrafficLight()
 
         light.header = Header()
@@ -47,7 +47,7 @@ class TLPublisher(object):
         return light
 
     def create_pose(self, x, y, z, yaw=0.):
-        rospy.loginfo("light_publisher.py create_pose)
+        rospy.loginfo("light_publisher.py create_pose")
         pose = PoseStamped()
 
         pose.header = Header()
@@ -66,7 +66,7 @@ class TLPublisher(object):
 
 if __name__ == '__main__':
     try:
-        rospy.loginfo("light_publisher.py instantiate TLPublisher)
+        rospy.loginfo("light_publisher.py instantiate TLPublisher")
         TLPublisher()
     except rospy.ROSInterruptException:
         rospy.logerr('Could not start traffic publisher node.')
