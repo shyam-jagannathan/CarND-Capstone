@@ -8,6 +8,8 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from light_classification.tl_classifier import TLClassifier
 import tf
+import tensorflow as tflow
+import numpy as np
 import cv2
 import yaml
 import math
@@ -51,6 +53,17 @@ class TLDetector(object):
         self.state_count = 0
         self.image_count = 0
 
+        MODEL_NAME = 'traffic-light-sim-graph'
+        PATH_TO_CKPT = MODEL_NAME + '/frozen_inference_graph.pb'
+
+        self.detection_graph = tflow.Graph()
+        with self.detection_graph.as_default():
+            od_graph_def = tflow.GraphDef()
+            with tflow.gfile.GFile(PATH_TO_CKPT, 'rb') as fid:
+                serialized_graph = fid.read()
+                od_graph_def.ParseFromString(serialized_graph)
+                tflow.import_graph_def(od_graph_def, name='')
+
         rospy.spin()
 
     def pose_cb(self, msg):
@@ -93,6 +106,10 @@ class TLDetector(object):
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
         self.state_count += 1
 
+    def load_image_into_numpy_array(img):
+        (im_width, im_height) = img.size
+        return np.array(img.getdata()).reshape((im_height, im_width, 3)).astype(np.uint8)
+
     def get_euclidean_distance(self, pos1, pos2):
         return math.sqrt((pos1.x-pos2.x)**2 + (pos1.y-pos2.y)**2  + (pos1.z-pos2.z)**2)
 
@@ -115,9 +132,9 @@ class TLDetector(object):
 
         # Calcuate distance between car and waypoint
         for waypoint in self.waypoints:
-            waypoint_position = waypoint.pose.pose.position 
+            waypoint_position = waypoint.pose.pose.position
             dist = self.get_euclidean_distance(car_position, waypoint_position)
-            
+
             # Store the index of waypoint which is nearest to the car
             if dist < min_dist:
                 min_dist = dist
@@ -181,21 +198,58 @@ class TLDetector(object):
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
         height, width ,channels = cv_image.shape
 
-        x, y = self.project_to_image_plane(light.pose.pose.position)
+        #x, y = self.project_to_image_plane(light.pose.pose.position)
 
-        file_name = "/home/student/Work/Vidyut-CarND-Capstone/ros/images/img" + str(self.image_count) + ".jpg"
+        #file_name = "/home/student/Work/Vidyut-CarND-Capstone/ros/images/img" + str(self.image_count) + ".jpg"
+        #log_file = open("/home/student/Work/Vidyut-CarND-Capstone/ros/images/log.txt", 'a')
 
         #TODO use light location to zoom in on traffic light in image
         if height != 600 or width !=800:
             cv_image = cv2.resize(cv_image, (800,600), interpolation=cv2.INTER_AREA)
 
-        cv2.imwrite(file_name, cv_image)
+        #cv2.imwrite(file_name, cv_image)
+        pred_state = 0
+
+        with self.detection_graph.as_default():
+            with tflow.Session(graph=self.detection_graph) as sess:
+                # Definite input and output Tensors for detection_graph
+                image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
+                # Each box represents a part of the image where a particular object was detected.
+                detection_boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
+                # Each score represent how level of confidence for each of the objects.
+                # Score is shown on the result image, together with the class label.
+                detection_scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
+                detection_classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
+                num_detections = self.detection_graph.get_tensor_by_name('num_detections:0')
+
+                #image_np = load_image_into_numpy_array(cv_image)
+                image_np_expanded = np.expand_dims(cv_image, axis=0)
+                (boxes, scores, classes, num) = sess.run([detection_boxes, detection_scores, detection_classes, num_detections], feed_dict={image_tensor: image_np_expanded})
+
+        class_id = []
+        for i in range(len(scores[0])):
+            if scores[0][i] > 0.5:
+                class_id.append(classes[0][i])
+
+        for i in range(len(class_id)):
+            if class_id[i] == 1:
+                pred_state = 0
+            elif class_id[i] == 2:
+                pred_state = 1
+            elif class_id[i] == 3:
+                pred_state = 2
+
+        print("pred_state {}".format(pred_state))
+        print("ground_truth {}".format(light.state))
+
+        #log_file.write(file_name + " pred = " + str(pred_state) + " truth = " + str(light.state))
+        #log_file.close()
 
         #Get classification
         #return self.light_classifier.get_classification(cv_image)
 
         #Shyam - Currently pass back the ground truth state
-        return light.state
+        return pred_state
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -209,9 +263,11 @@ class TLDetector(object):
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
 
+        car_wp = 0
+
         if(self.pose):
             car_wp = self.get_closest_waypoint(self.pose.pose)
-        
+
         #TODO find the closest visible traffic light (if one exists)
         stop_line_pose = Pose()
         stop_line_wp_list = []
