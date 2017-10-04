@@ -36,7 +36,7 @@ class TLDetector(object):
         rely on the position of the light and the camera image to predict it.
         '''
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
-        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
+        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb, queue_size=1, buff_size=14400000)
 
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
@@ -200,8 +200,8 @@ class TLDetector(object):
 
         #x, y = self.project_to_image_plane(light.pose.pose.position)
 
-        #file_name = "/home/student/Work/Vidyut-CarND-Capstone/ros/images/img" + str(self.image_count) + ".jpg"
-        #log_file = open("/home/student/Work/Vidyut-CarND-Capstone/ros/images/log.txt", 'a')
+        #file_name = "/home/shyam/Work/SDCNDP/Project13/Vidyut-CarND-Capstone/ros/images" + str(self.image_count) + ".jpg"
+        #log_file = open("/home/shyam/Work/SDCNDP/Project13/Vidyut-CarND-Capstone/ros/images/log.txt", 'a')
 
         #TODO use light location to zoom in on traffic light in image
         if height != 600 or width !=800:
@@ -242,7 +242,7 @@ class TLDetector(object):
         print("pred_state {}".format(pred_state))
         print("ground_truth {}".format(light.state))
 
-        #log_file.write(file_name + " pred = " + str(pred_state) + " truth = " + str(light.state))
+        #log_file.write(file_name + " pred = " + str(pred_state) + " truth = " + str(light.state) + "\n")
         #log_file.close()
 
         #Get classification
@@ -292,7 +292,7 @@ class TLDetector(object):
                         light_wp = stop_line_wp_list[i]
                         light = self.lights[i]
 
-        rospy.loginfo("--- Car wp %s",car_wp)
+        #rospy.loginfo("--- Car wp %s",car_wp)
 
         if light:
             state = self.get_light_state(light)
