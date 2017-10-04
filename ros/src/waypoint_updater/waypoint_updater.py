@@ -13,7 +13,7 @@ This node will publish waypoints from the car's current position to some `x` dis
 '''
 
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
-MAX_SPEED = 10*0.447 #8.94 #16 #20*0.447 
+#self.top_speed = 10*0.447 #8.94 #16 #20*0.447 
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -38,6 +38,7 @@ class WaypointUpdater(object):
         self.waypoints = None
         self.traffic_light_red_waypoint = -1
         self.previous_closest_waypoint_index = None
+        self.top_speed=rospy.get_param('waypoint_loader/velocity')*0.277777778
         self.tf_listener = tf.TransformListener()
 
         rospy.spin()
@@ -94,7 +95,8 @@ class WaypointUpdater(object):
             
             # If there is no upcoming red light - set the car to max speed
             if not upcoming_red_light or i > self.traffic_light_red_waypoint:
-                self.set_waypoint_velocity(next_wps, i, MAX_SPEED)
+                self.set_waypoint_velocity(next_wps, i, self.top_speed)
+                
 
             # If car is uproaching a red light then:
             else:
@@ -121,7 +123,7 @@ class WaypointUpdater(object):
                         update_velocity = 0.0
                 else:
                 # If there is an upcoming red light - slowly (step by step) reduce velocity based on number of waypoints remaining
-                    update_velocity = MAX_SPEED - (waypoint_distance_threshold - waypoint_remaining)*(MAX_SPEED/waypoint_distance_threshold)
+                    update_velocity = self.top_speed - (waypoint_distance_threshold - waypoint_remaining)*(self.top_speed/waypoint_distance_threshold)
                 new_velocity = max(0.0, update_velocity)
                 self.set_waypoint_velocity(next_wps, i, new_velocity)    
  
@@ -160,8 +162,9 @@ class WaypointUpdater(object):
         return waypoint.twist.twist.linear.x
 
     def set_waypoint_velocity(self, waypoints, waypoint, velocity):
-        waypoints[waypoint].twist.twist.linear.x = velocity
-
+        waypoints[waypoint].twist.twist.linear.x = min(velocity,self.top_speed)
+        rospy.loginfo(waypoints[waypoint].twist.twist.linear.x)
+        
     def distance(self, waypoints, wp1, wp2):
         dist = 0
         dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
