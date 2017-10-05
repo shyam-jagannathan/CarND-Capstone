@@ -231,12 +231,13 @@ class TLDetector(object):
             if scores[0][i] > 0.5:
                 class_id.append(classes[0][i])
 
-        for i in range(len(class_id)):
-            if class_id[i] == 1:
+        if (class_id):
+            class_val = np.argmax(np.bincount(np.array(class_id, dtype=int)))
+            if class_val == 1:
                 pred_state = 0
-            elif class_id[i] == 2:
+            elif class_val == 2:
                 pred_state = 1
-            elif class_id[i] == 3:
+            elif class_val == 3:
                 pred_state = 2
 
         print("pred_state {}".format(pred_state))
@@ -296,7 +297,7 @@ class TLDetector(object):
 
         if light:
             state = self.get_light_state(light)
-            rospy.loginfo("--- Light wp %s, state %s",light_wp, state)
+            #rospy.loginfo("--- Light wp %s, state %s",light_wp, state)
             return light_wp, state
         return -1, TrafficLight.UNKNOWN
 
