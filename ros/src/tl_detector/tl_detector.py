@@ -14,7 +14,7 @@ import cv2
 import yaml
 import math
 
-STATE_COUNT_THRESHOLD = 3
+STATE_COUNT_THRESHOLD = 1
 
 class TLDetector(object):
     def __init__(self):
@@ -36,7 +36,7 @@ class TLDetector(object):
         rely on the position of the light and the camera image to predict it.
         '''
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
-        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb, queue_size=1, buff_size=14400000)
+        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb,queue_size=1,buff_size=14400000)
 
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
@@ -105,6 +105,9 @@ class TLDetector(object):
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
         self.state_count += 1
+        if state == TrafficLight.GREEN :
+           rospy.loginfo("---- GREEN ----")
+           self.upcoming_red_light_pub.publish(Int32(-1))
 
     def load_image_into_numpy_array(img):
         (im_width, im_height) = img.size
@@ -239,9 +242,10 @@ class TLDetector(object):
                 pred_state = 1
             elif class_val == 3:
                 pred_state = 2
-
+                
         print("pred_state {}".format(pred_state))
         print("ground_truth {}".format(light.state))
+        
 
         #log_file.write(file_name + " pred = " + str(pred_state) + " truth = " + str(light.state) + "\n")
         #log_file.close()
