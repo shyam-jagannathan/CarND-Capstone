@@ -10,10 +10,10 @@ from bridge import Bridge
 from conf import conf
 
 #Added as simulator car doesn't start even when throttle = 1.0
-eventlet.monkey_patch()
-sio = socketio.Server(async_mode='eventlet')
+#eventlet.monkey_patch()
+#sio = socketio.Server(async_mode='eventlet')
 
-#sio = socketio.Server()
+sio = socketio.Server()
 app = Flask(__name__)
 msgs = []
 
