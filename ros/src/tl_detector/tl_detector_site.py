@@ -211,7 +211,7 @@ class TLDetector(object):
             cv_image = cv2.resize(cv_image, (800,600), interpolation=cv2.INTER_AREA)
 
         #cv2.imwrite(file_name, cv_image)
-        pred_state = 0
+        pred_state = TrafficLight.UNKNOWN
 
         with self.detection_graph.as_default():
             with tflow.Session(graph=self.detection_graph) as sess:
@@ -237,11 +237,11 @@ class TLDetector(object):
         if (class_id):
             class_val = np.argmax(np.bincount(np.array(class_id, dtype=int)))
             if class_val == 1:
-                pred_state = 0
+                pred_state = TrafficLight.RED
             elif class_val == 2:
-                pred_state = 1
+                pred_state = TrafficLight.YELLOW
             elif class_val == 3:
-                pred_state = 2
+                pred_state = TrafficLight.GREEN
                 
         print("pred_state {}".format(pred_state))
         print("ground_truth {}".format(light.state))
