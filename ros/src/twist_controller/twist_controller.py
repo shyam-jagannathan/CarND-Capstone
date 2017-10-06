@@ -13,7 +13,11 @@ MAX_BREAK_TORQUE = 3412
 class Controller(object):
     def __init__(self, *args, **kwargs):
         self.speed_control_pid = PID(3.5,0.0,0.01,kwargs['decel_limit'],kwargs['accel_limit'])
-        self.steer_control_pid = PID(0.5,0.0,0.005,-kwargs['max_steer_angle'],kwargs['max_steer_angle'])
+        if rospy.get_param('waypoint_loader/velocity') <= 20:
+           self.steer_control_pid = PID(0.25,0.0,0.01,-kwargs['max_steer_angle'],kwargs['max_steer_angle'])
+        else:
+           self.steer_control_pid = PID(0.6,0.0,0.005,-kwargs['max_steer_angle'],kwargs['max_steer_angle'])
+
         self.min_speed = 0.0 
         self.steer_yaw_controller = YawController(kwargs['wheel_base'],kwargs['steer_ratio'],
                                     self.min_speed,kwargs['max_lat_accel'],
