@@ -253,7 +253,6 @@ class TLDetector(object):
         #Get classification
         #return self.light_classifier.get_classification(cv_image)
 
-        #Shyam - Currently pass back the ground truth state
         return pred_state
 
     def process_traffic_lights(self):

@@ -203,7 +203,7 @@ class TLDetector(object):
 
         #x, y = self.project_to_image_plane(light.pose.pose.position)
 
-        #file_name = "/home/shyam/Work/SDCNDP/Project13/Vidyut-CarND-Capstone/ros/images" + str(self.image_count) + ".jpg"
+        #file_name = "/home/shyam/Work/SDCNDP/Project13/Vidyut-CarND-Capstone/ros/images/img" + str(self.image_count) + ".jpg"
         #log_file = open("/home/shyam/Work/SDCNDP/Project13/Vidyut-CarND-Capstone/ros/images/log.txt", 'a')
 
         #TODO use light location to zoom in on traffic light in image
@@ -231,7 +231,7 @@ class TLDetector(object):
 
         class_id = []
         for i in range(len(scores[0])):
-            if scores[0][i] > 0.5:
+            if scores[0][i] > 0.3:
                 class_id.append(classes[0][i])
 
         if (class_id):
@@ -253,7 +253,6 @@ class TLDetector(object):
         #Get classification
         #return self.light_classifier.get_classification(cv_image)
 
-        #Shyam - Currently pass back the ground truth state
         return pred_state
 
     def process_traffic_lights(self):
