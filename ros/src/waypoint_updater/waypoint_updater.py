@@ -17,6 +17,12 @@ LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this n
 
 class WaypointUpdater(object):
     def __init__(self):
+
+    	self.current_pose = None
+        self.waypoints = None
+        self.traffic_light_red_waypoint = -1
+        self.previous_closest_waypoint_index = None
+
         rospy.init_node('waypoint_updater')
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
 
@@ -34,10 +40,7 @@ class WaypointUpdater(object):
         self.stop_line_positions = self.config['stop_line_positions']
         #rospy.loginfo(self.stop_line_positions)
 
-        self.current_pose = None
-        self.waypoints = None
-        self.traffic_light_red_waypoint = -1
-        self.previous_closest_waypoint_index = None
+
         self.top_speed=rospy.get_param('waypoint_loader/velocity')*0.277777778
         self.tf_listener = tf.TransformListener()
 
@@ -64,7 +67,7 @@ class WaypointUpdater(object):
             end = self.previous_closest_waypoint_index + 20
             #rospy.loginfo(end)
             # Fixes crash issue at end of lap
-            if (end>len(self.waypoints)-1):
+            if (end>len(self.waypoints)-1 or start < -21):
                 rospy.loginfo(end)
                 start = 0
                 end = len(self.waypoints)
@@ -205,6 +208,24 @@ class WaypointUpdater(object):
         traffic_light_red_waypoint_tf = self.tf_listener.transformPose("base_link", lane.waypoints[traffic_light].pose)
         line_distance = traffic_light_red_waypoint_tf.pose.position.x - gap
         return line_distance
+
+    # def find_stop_line(self,traffic_light,lane):
+    # 	self.tf_listener.waitForTransform("/map", "/base_link", rospy.Time(), rospy.Duration(4.0))
+    # 	line_distance = 0
+    # 	try:
+    #     	gap = 3
+    #     	now = rospy.Time.now()
+    #     	lane.waypoints[traffic_light].pose.header.frame_id = lane.header.frame_id
+    #     	self.tf_listener.waitForTransform("/map", "/base_link", now, rospy.Duration(4.0))
+    #     	#self.tf_listener.lookupTransform("/world", "/base_link", now)
+
+    #     	traffic_light_red_waypoint_tf = self.tf_listener.transformPose("base_link", lane.waypoints[traffic_light].pose)
+    #     	line_distance = traffic_light_red_waypoint_tf.pose.position.x - gap
+    #     	rospy.loginfo("YESSS")
+    #     except:
+    #     	rospy.logerr("stop line error")
+    #     return line_distance
+
 
 
 if __name__ == '__main__':
