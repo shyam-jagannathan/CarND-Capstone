@@ -198,20 +198,22 @@ class TLDetector(object):
             return False
 
         self.image_count = self.image_count + 1
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
         height, width ,channels = cv_image.shape
 
         #x, y = self.project_to_image_plane(light.pose.pose.position)
 
-        #file_name = "/home/shyam/Work/SDCNDP/Project13/Vidyut-CarND-Capstone/ros/images/img" + str(self.image_count) + ".jpg"
+        #file_name = "/home/shyam/Work/SDCNDP/Project13/Vidyut-CarND-Capstone/ros/images/img_light_tl" + str(self.image_count) + ".jpg"
         #log_file = open("/home/shyam/Work/SDCNDP/Project13/Vidyut-CarND-Capstone/ros/images/log.txt", 'a')
 
         #TODO use light location to zoom in on traffic light in image
         if height != 600 or width !=800:
             cv_image = cv2.resize(cv_image, (800,600), interpolation=cv2.INTER_AREA)
 
-        #cv2.imwrite(file_name, cv_image)
+        #cv2.imwrite(file_name, cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR))
         pred_state = TrafficLight.UNKNOWN
+
+        #print("Tensorflow version " + tflow.__version__)
 
         with self.detection_graph.as_default():
             with tflow.Session(graph=self.detection_graph) as sess:
@@ -243,8 +245,8 @@ class TLDetector(object):
             elif class_val == 3:
                 pred_state = TrafficLight.GREEN
                 
-        print("pred_state {}".format(pred_state))
-        print("ground_truth {}".format(light.state))
+        #print("pred_state {}".format(pred_state))
+        #print("ground_truth {}".format(light.state))
         
 
         #log_file.write(file_name + " pred = " + str(pred_state) + " truth = " + str(light.state) + "\n")
