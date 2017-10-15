@@ -198,7 +198,7 @@ class TLDetector(object):
             return False
 
         self.image_count = self.image_count + 1
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
         height, width ,channels = cv_image.shape
 
         #x, y = self.project_to_image_plane(light.pose.pose.position)
@@ -212,6 +212,8 @@ class TLDetector(object):
 
         #cv2.imwrite(file_name, cv_image)
         pred_state = TrafficLight.UNKNOWN
+
+        #print("Tensorflow version " + tflow.__version__)
 
         with self.detection_graph.as_default():
             with tflow.Session(graph=self.detection_graph) as sess:
